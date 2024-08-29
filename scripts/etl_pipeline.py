@@ -21,7 +21,7 @@ def load_merchant_details(merchant_df):
     merchant_df = merchant_df.withColumn("tags", F.regexp_replace("tags", r"^[\(\[]|[\)\]]$", "")) # Remove the outermost bracket
     merchant_df = merchant_df.withColumn("tags", F.regexp_replace("tags", r"[\)\]],\s*[\(\[]", r")\|(")) # Replacing the comma that seperate each touple/list into "|"
 
-    # Split accorddingly 
+    # Split accordingly 
     merchant_df = merchant_df.withColumn("tags", F.split("tags", "\|")) 
     merchant_df = merchant_df.withColumns({"category": F.regexp_replace(F.col("tags").getItem(0), r"^[\(\[]|[\)\]]$", ""),
                          "revenue_level": F.regexp_replace(F.col("tags").getItem(1), r"^[\(\[]|[\)\]]$", ""),
