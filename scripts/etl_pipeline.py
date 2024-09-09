@@ -96,6 +96,18 @@ def get_dataset_count(df):
 
     return
 
+def ensure_datetime_range(df, start, end):
+    """
+        This function ensures that a dataframe with a column that specifies datetime is within the desire datetime range
+    """
+    inital_entries = df.count()
+    df = df.filter((start <= F.to_date(F.col("order_datetime"))) &
+                           (F.to_date(F.col("order_datetime")) <= end))
+    
+    final_entries = df.count()
+    print(f"Starting entries: {inital_entries} \nFinal entries: {final_entries}")
+    print(f"Net change (%): {round((inital_entries - final_entries)/inital_entries * 100, 2)} ")
+    return df
 
 def calculate_missing_values(df):
     """
@@ -108,7 +120,7 @@ def calculate_missing_values(df):
 
     # Iterate over each column, summing their counts of NULL values
     for column in df.columns:
-        null_count_expression = sum(col(column).isNull().cast("int")).alias(column + '_missing_count')
+        null_count_expression = F.sum(F.col(column).isNull().cast("int")).alias(column + '_missing_count')
         null_count_columns.append(null_count_expression)
 
     # Select the summed NULL counts and display them
