@@ -108,6 +108,7 @@ def ensure_datetime_range(df, start, end):
     final_entries = df.count()
     print(f"Starting entries: {initial_entries} \nFinal entries: {final_entries}")
     print(f"Net change (%): {round((initial_entries - final_entries)/initial_entries * 100, 2)} ")
+    print("\n")
     return df
 
 def calculate_missing_values(df):
