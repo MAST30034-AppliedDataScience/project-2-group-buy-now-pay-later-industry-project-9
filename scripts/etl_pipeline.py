@@ -2,7 +2,6 @@ from pyspark.sql import functions as F, SparkSession, DataFrame
 from pyspark.sql.types import IntegerType, LongType, DoubleType, StringType, DoubleType
 from functools import reduce
 from pyspark.sql.functions import col, sum
-from pyspark.sql.types import DoubleType, FloatType, DateType, StringType
 import zipfile
 import os
 
@@ -101,47 +100,31 @@ def ensure_datetime_range(df, start, end):
     """
         This function ensures that a dataframe with a column that specifies datetime is within the desire datetime range
     """
-    initial_entries = df.count()
+    inital_entries = df.count()
     df = df.filter((start <= F.to_date(F.col("order_datetime"))) &
                            (F.to_date(F.col("order_datetime")) <= end))
     
     final_entries = df.count()
-    print(f"Starting entries: {initial_entries} \nFinal entries: {final_entries}")
-    print(f"Net change (%): {round((initial_entries - final_entries)/initial_entries * 100, 2)} ")
-    print("\n")
+    print(f"Starting entries: {inital_entries} \nFinal entries: {final_entries}")
+    print(f"Net change (%): {round((inital_entries - final_entries)/inital_entries * 100, 2)} ")
     return df
 
 def calculate_missing_values(df):
     """
-    Takes in a DataFrame, calculates the count of missing (NULL or NaN) values 
+    Takes in a DataFrame, calculates the count of missing (NULL) values 
     for each column, and displays it as a table.
     """
 
-    # Initialise an empty list to hold the expressions for summing missing value counts
-    missing_count_columns = []
+    # Initialise an empty list to hold the expressions for summing NULL counts
+    null_count_columns = []
 
-    # Iterate over each column, summing their counts of NULL or NaN values
+    # Iterate over each column, summing their counts of NULL values
     for column in df.columns:
+        null_count_expression = F.sum(F.col(column).isNull().cast("int")).alias(column + '_missing_count')
+        null_count_columns.append(null_count_expression)
 
-        column_type = df.schema[column].dataType
-        
-        # For numeric columns, check both NULL and NaN values
-        if isinstance(column_type, (DoubleType, FloatType)):
-            missing_count_expression = F.sum(
-                (F.col(column).isNull() | F.isnan(F.col(column))).cast("int")
-            ).alias(f"{column}_missing_count")
-        
-        # For non-numeric columns, only check for NULL values
-        else:
-            missing_count_expression = F.sum(
-                F.col(column).isNull().cast("int")
-            ).alias(f"{column}_missing_count")
-        
-        missing_count_columns.append(missing_count_expression)
-
-
-    # Select the summed NULL and NaN counts and display them
-    missing_value_counts = df.select(missing_count_columns)
+    # Select the summed NULL counts and display them
+    missing_value_counts = df.select(null_count_columns)
     missing_value_counts.show()
 
     return
