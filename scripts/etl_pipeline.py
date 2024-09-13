@@ -2,8 +2,16 @@ from pyspark.sql import functions as F, SparkSession, DataFrame
 from pyspark.sql.types import IntegerType, LongType, DoubleType, StringType, DoubleType
 from functools import reduce
 from pyspark.sql.functions import col, sum
+import pandas as pd
+import numpy as np
+from geopy.distance import geodesic
+from sklearn.neighbors import KNeighborsRegressor
+
+from urllib.request import urlretrieve
 import zipfile
 import os
+
+pd.options.mode.chained_assignment = None 
 
 def replace_id(map_df, target_df):
     """
@@ -128,3 +136,78 @@ def calculate_missing_values(df):
     missing_value_counts.show()
 
     return
+
+def clean_postcode_lga_mapping(df):
+    """
+        This funcion clean the data on mapping postcode to LGA as well as impute missing LGA code using KNN
+    """
+
+    cols = ["postcode", "state", "long","lat", "lgacode"]
+    df = df[cols]
+    df.drop_duplicates(subset=["postcode"], inplace=True) # dropping any duplicates 
+
+
+    # Separate entries with LGA code and entries without LGA code
+    df_missing = df[df['lgacode'].isnull()]
+    df_not_missing = df.dropna(subset=['lgacode'])
+
+    # Split predictor and lable for classification
+    X_train = df_not_missing[['long', 'lat']]
+    y_train = df_not_missing['lgacode']
+
+    # Intialise the model
+    knn = KNeighborsRegressor(n_neighbors=1)
+    knn.fit(X_train, y_train)
+
+    # Predict missing lgacode for entries with missing lgacode
+    X_missing = df_missing[['long', 'lat']]
+    df.loc[df['lgacode'].isnull(), 'lgacode'] = knn.predict(X_missing)
+
+    df['lgacode'] = df['lgacode'].astype(int)
+
+    return df
+
+def preprocess_income_df(df):
+    renamed_col = {'Unnamed: 0': 'lga', 'Unnamed: 1': 'lga_name', 'Earners': 'num_earners', 'Median age of earners': 'median_age',
+               'Sum': 'total_income', 'Median': 'median_income', 'Mean': 'mean_income', 'Gini coefficient': 'gini_coef'}
+
+    df = df.rename(columns=renamed_col)
+
+    remove_rows = ['LGA', 'Australia ', 'New South Wales', 'Victoria', 'Queensland', 'South Australia', 'Western Australia', 
+                   'Tasmania', 'Northern Territory', 'Australian Capital Territory']
+
+    for row in remove_rows:
+        df = df.drop(df[df['lga'] == row].index)
+    
+    df = df.reset_index()
+    df = df.drop(columns = 'index')
+
+    selected_cols = ['lga', 'median_age', 'median_income',
+                     'mean_income']
+    
+    df = df[selected_cols]
+
+    for index, row in df[df['median_age'] == 'np'].iterrows():
+        df.loc[index, 'median_age'] = 42
+        df.loc[index, 'median_income'] = "58,591"
+        df.loc[index, 'mean_income'] = "75,878"
+
+    for col in selected_cols[2:]:   
+        df[col] = df[col].str.replace(",", "").astype(int)
+
+    return df
+
+def impute_income_metrics(df):
+    missing = df[df.lga.isnull()]
+    not_missing = df.dropna(subset=['lga'])
+
+    X_train = not_missing[['long', 'lat']]
+    y_train = not_missing[['median_age', 'median_income', 'mean_income']]
+
+    knn = KNeighborsRegressor(n_neighbors=1)
+    knn.fit(X_train, y_train)
+
+    X_missing = missing[['long', 'lat']]
+    df.loc[df.lga.isnull(),['median_age', 'median_income', 'mean_income']] = knn.predict(X_missing)
+
+    return df
