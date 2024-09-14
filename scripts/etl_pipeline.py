@@ -211,3 +211,32 @@ def impute_income_metrics(df):
     df.loc[df.lga.isnull(),['median_age', 'median_income', 'mean_income']] = knn.predict(X_missing)
 
     return df
+
+def process_fp_data(path):
+    columns_name = {
+        "Table 4a" : {'Unnamed: 0': 'state', 'Unnamed: 7': "victimisation_rate"},
+        "Table 4b" : {'Unnamed: 0': 'state', 'Unnamed: 7': "rse_percent"}
+    }
+
+    state_mapping = {
+        "New South Wales" : "NSW", "Victoria": "VIC", "Queensland": "QLD",
+        "South Australia": "SA", "Western Australia": "WA", "Tasmania": "TAS",
+        "Northern Territory": "NT", "Australian Capital Territory": "ACT"
+    }
+
+    # Loading in the table 
+    df_1 = pd.read_excel(io = path, sheet_name="Table 4a", skiprows = 8, skipfooter= 70, usecols = "A,H")
+    df_2 = pd.read_excel(io = path, sheet_name="Table 4b", skiprows = 8, skipfooter= 67, usecols = "A,H")
+
+    # Renaming the columns
+    df_1 = df_1.rename(columns = columns_name["Table 4a"])
+    df_2 = df_2.rename(columns = columns_name["Table 4b"])
+    
+    # Reduce that state name into code
+    for index , row in df_1.iterrows():
+        df_1.loc[index, "state"] = state_mapping[row['state']]
+        df_2.loc[index, "state"] = state_mapping[row['state']]
+
+    df = df_1.merge(df_2, on="state", how = "inner")
+
+    return df
