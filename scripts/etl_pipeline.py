@@ -4,7 +4,6 @@ from functools import reduce
 from pyspark.sql.functions import col, sum
 import pandas as pd
 import numpy as np
-from geopy.distance import geodesic
 from sklearn.neighbors import KNeighborsRegressor
 
 from urllib.request import urlretrieve
