@@ -9,7 +9,11 @@ from pyspark.ml.evaluation import RegressionEvaluator
 from pyspark.ml.tuning import ParamGridBuilder, CrossValidator
 
 def assemble_data(data):
-    # Pipeline
+    # Apply log transformation to dollar value
+    data = data.withColumn("dollar_value", 
+                           F.when(F.col("dollar_value") > 0, F.log(F.col('dollar_value'))).otherwise(None))
+
+    # Convert into vector and index 
     revenue_indexer = StringIndexer(inputCol = 'revenue_level', outputCol = 'revenue_index')
 
     year_indexer = StringIndexer(inputCol='year', outputCol='year_index')
@@ -18,12 +22,18 @@ def assemble_data(data):
 
     is_weekend_vector = OneHotEncoder(inputCol='is_weekend', outputCol='is_weekend_vector')
 
-    # scaled_dollar_value = StandardScaler(inputCol='dollar_value', outputCol='norm_dollar_value')
-    # scaled_dev_dollar_value = StandardScaler(inputCol='std_diff_dollar_value', outputCol='norm_dev_dollar_value')
+    # Features to be normalise
+    cols_to_norm = ['dollar_value', 'std_diff_dollar_value', 'monthly_order_volume', 'std_diff_order_volume']
+
+    for col in cols_to_norm:
+        norm_assembler = VectorAssembler(inputCols=[col], outputCol= f'{col}_vec')
+        data = norm_assembler.transform(data)
+        scaler = StandardScaler(inputCol=f"{col}_vec", outputCol=f"norm_{col}")
+        data = scaler.fit(data.select(f"{col}_vec")).transform(data)
 
     predictors = ['revenue_index', 'year_index', 'month_index',
-                  'weekday_index', 'is_weekend_vector', 'dollar_value', 'std_diff_dollar_value',
-                  'monthly_order_volume', 'std_diff_order_volume', 'take_rate']
+                  'weekday_index', 'is_weekend_vector', 'norm_dollar_value', 'norm_std_diff_dollar_value',
+                  'norm_monthly_order_volume', 'norm_std_diff_order_volume', 'take_rate']
 
     assembler = VectorAssembler(inputCols=predictors, outputCol='features')
     pipeline = Pipeline(stages=[revenue_indexer, year_indexer, month_indexer, weekday_indexer,
