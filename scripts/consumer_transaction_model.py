@@ -1,7 +1,18 @@
 import matplotlib.pyplot as plt
 import seaborn as sns
+import pandas as pd
+import sys
 
-
+from pyspark.sql import functions as F, SparkSession
+from pyspark.sql.window import Window
+from pyspark.ml.regression import DecisionTreeRegressor, RandomForestRegressor
+from pyspark.ml.evaluation import RegressionEvaluator
+from pyspark.ml.tuning import ParamGridBuilder, CrossValidator
+from pyspark.ml import Pipeline
+from pyspark.ml.regression import LinearRegression
+from pyspark.ml.feature import StringIndexer
+from pyspark.ml.feature import StandardScaler, VectorAssembler
+from pyspark.ml.functions import vector_to_array
 
 def feature_visualisation(df_pandas, plots):
     """ 
