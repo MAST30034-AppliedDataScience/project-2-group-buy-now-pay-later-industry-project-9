@@ -10,7 +10,7 @@ from pyspark.ml.evaluation import RegressionEvaluator
 from pyspark.ml.tuning import ParamGridBuilder, CrossValidator
 from pyspark.ml import Pipeline
 from pyspark.ml.regression import LinearRegression
-from pyspark.ml.feature import StringIndexer
+from pyspark.ml.feature import StringIndexer, OneHotEncoder
 from pyspark.ml.feature import StandardScaler, VectorAssembler
 from pyspark.ml.functions import vector_to_array
 
@@ -43,3 +43,41 @@ def feature_visualisation(df_pandas, plots):
 
     # Show the entire plot
     plt.show()
+    
+def assemble_data(data, predictors):
+    # Apply log transformation to dollar value related columns
+    cols_to_log = ['dollar_value', 'average_dollar_value', 'min_dollar_value',
+                'max_dollar_value', 'stddev_dollar_value',
+                "Proportion_between_max_order_value_mean_income",
+                "Proportion_between_max_order_value_median_income",
+                "Proportion_between_total_order_value_mean_income",
+                "Proportion_between_total_order_value_median_income"
+                ] 
+    
+    for col in cols_to_log:
+        data = data.withColumn(col, F.when(F.col(col) > 0, F.log(F.col(col))).otherwise(None))
+
+    
+    # Apply normalisation to columns of choice
+    cols_to_norm = ["dollar_value", "min_dollar_value", "max_dollar_value", "stddev_dollar_value","average_dollar_value"]
+    
+    for col in cols_to_norm:
+        norm_assembler = VectorAssembler(inputCols=[col], outputCol= f'{col}_vec')
+        data = norm_assembler.transform(data)
+        scaler = StandardScaler(inputCol=f"{col}_vec", outputCol=f"norm_{col}")
+        data = scaler.fit(data.select(f"{col}_vec")).transform(data)
+        
+    
+    # Apply StringIndexing to month to keep ordinal structure
+    month_indexer = StringIndexer(inputCol='month', outputCol='month_index')
+    weekday_indexer = StringIndexer(inputCol='day_of_week', outputCol='weekday_index')
+    
+    is_weekend_vector = OneHotEncoder(inputCol='is_weekend', outputCol='is_weekend_vector')
+    
+    assembler = VectorAssembler(inputCols=predictors, outputCol='features')
+    pipeline = Pipeline(stages=[month_indexer, weekday_indexer, is_weekend_vector, assembler])
+    
+    assembled_data = pipeline.fit(data).transform(data)
+    
+    return assembled_data, assembler
+    
