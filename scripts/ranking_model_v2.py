@@ -7,6 +7,8 @@ import pandas as pd
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import LSTM, Dense, Dropout
 from keras.optimizers import Adam
+import matplotlib.pyplot as plt
+import seaborn as sns
 
 def forecast_revenue(df):
     """
